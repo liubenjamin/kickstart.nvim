@@ -995,22 +995,56 @@ require('lazy').setup({
   },
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
+    branch = 'main', -- master is archived and breaks on Neovim 0.12; main supports it
     build = ':TSUpdate',
-    main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
-    opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
-      -- Autoinstall languages that are not installed
-      auto_install = true,
-      highlight = {
-        enable = true,
-        -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-        --  If you are experiencing weird indenting issues, add the language to
-        --  the list of additional_vim_regex_highlighting and disabled languages for indent.
-        additional_vim_regex_highlighting = { 'ruby' },
-      },
-      indent = { enable = true, disable = { 'ruby' } },
-    },
+    -- The `main` branch dropped the old module system (no more `opts` with
+    -- `ensure_installed`/`highlight`/`indent`). Parsers are installed via
+    -- `require('nvim-treesitter').install(...)` and highlighting is started
+    -- per-buffer with `vim.treesitter.start()`.
+    config = function()
+      -- Parsers to keep installed (replaces the old `ensure_installed`).
+      require('nvim-treesitter').install {
+        'bash',
+        'c',
+        'diff',
+        'html',
+        'lua',
+        'luadoc',
+        'markdown',
+        'markdown_inline',
+        'query',
+        'vim',
+        'vimdoc',
+      }
+
+      vim.api.nvim_create_autocmd('FileType', {
+        group = vim.api.nvim_create_augroup('treesitter-highlight', { clear = true }),
+        callback = function(args)
+          local buf = args.buf
+          local filetype = args.match
+
+          -- Start treesitter highlighting. `vim.treesitter.start()` asserts
+          -- (raises) when no parser is available for the language, so guard it
+          -- with pcall and bail before touching indent settings. Filetypes
+          -- without an installed parser (e.g. `template`) simply get no
+          -- treesitter highlighting rather than throwing.
+          local lang = vim.treesitter.language.get_lang(filetype) or filetype
+          if not pcall(vim.treesitter.start, buf, lang) then
+            return
+          end
+
+          -- Some languages (such as Ruby) depend on vim's regex highlighting
+          -- system for correct indent rules, so keep syntax on and skip the
+          -- treesitter indentexpr for them.
+          if filetype == 'ruby' then
+            vim.bo[buf].syntax = 'on'
+          else
+            vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+          end
+        end,
+      })
+    end,
     -- There are additional nvim-treesitter modules that you can use to interact
     -- with nvim-treesitter. You should go explore a few and see what interests you:
     --
