@@ -10,6 +10,7 @@ vim.keymap.set('n', '<leader>w', '<cmd>w<cr>')
 vim.keymap.set('n', '<leader>q', '<cmd>q<cr>')
 vim.keymap.set('n', '<leader>n', '<cmd>tabprev<cr>')
 vim.keymap.set('n', '<leader>p', '<cmd>tabnext<cr>')
+vim.keymap.set('n', '<leader><space>', 'zz')
 vim.api.nvim_create_autocmd('VimLeave', { command = 'set guicursor=a:ver10-blinkon1-blinkwait10' })
 vim.cmd.colorscheme 'catppuccin-macchiato'
 
